@@ -462,6 +462,11 @@
     return (pad(now.getHours()) + pad(now.getMinutes()) + pad(now.getSeconds())).split('');
   }
 
+  // 指定された Date を 6桁の文字列配列に
+  function getDigitsFromDate(d) {
+    return (pad(d.getHours()) + pad(d.getMinutes()) + pad(d.getSeconds())).split('');
+  }
+
   function randomOffset() {
     const tx = (Math.random() * 10 - 5).toFixed(2) + 'px';
     const ty = (Math.random() * 8 - 4).toFixed(2) + 'px';
@@ -679,15 +684,29 @@
     createS2Strip();
   }
 
+  // 前5桁は「次の秒の値」に向けてフライングでアニメを開始する。
+  // アニメ時間: delay 0.24s + duration 0.72s ≈ 0.96s なので、
+  // 現在秒の開始時点(例: xx:xx:59.000)でアニメを起動すれば、
+  // S2が0になる瞬間(次の秒開始)にもほぼ着地が完了する。
   function tick() {
-    const current = getTimeDigits();
+    const now = new Date();
+    const current = getDigitsFromDate(now);
+
+    // 次の秒の時刻(前5桁の判定に使う)
+    const nextDate = new Date(now.getTime() + 1000);
+    const next = getDigitsFromDate(nextDate);
+
+    // 初回は現在の時刻をそのまま表示。次回以降は「次の秒に向けたフライング」を行う
+    const initial = (prev[0] === '');
 
     for (let i = 0; i < 5; i++) {
-      if (current[i] !== prev[i]) {
-        if (prev[i] === '') {
-          setInitialSingleDigit(digits[i], current[i]);
-        } else {
-          updateSingleDigit(digits[i], current[i]);
+      if (initial) {
+        // 初回: 現在の値をそのまま配置
+        setInitialSingleDigit(digits[i], current[i]);
+      } else {
+        // 2回目以降: 「次の秒の値」が現在の表示(prev[i])と異なるならアニメ起動
+        if (next[i] !== prev[i]) {
+          updateSingleDigit(digits[i], next[i]);
         }
       }
     }
@@ -696,7 +715,14 @@
       initS2();
     }
 
-    prev = current;
+    // prev は「画面に最終的に表示される値」を記録
+    if (initial) {
+      prev = current;
+    } else {
+      // 前5桁は next に向けてアニメ起動済みなので next に更新
+      // S2 は常に時刻同期で当てられるので current でよい
+      prev = [next[0], next[1], next[2], next[3], next[4], current[S2_INDEX]];
+    }
   }
 
   tick();
