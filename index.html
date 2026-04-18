@@ -718,6 +718,9 @@
     }, delay);
   }
   scheduleNextTick();
+if ('wakeLock' in navigator) {
+  navigator.wakeLock.request('screen').catch(()=>{});
+}
 </script>
 </body>
 </html>
