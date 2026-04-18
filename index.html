@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fancy Clock V2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- 30種類のエレガント/セクシー系スクリプトフォント -->
+<link href="https://fonts.googleapis.com/css2?family=Pinyon+Script&family=Allura&family=Italianno&family=Parisienne&family=Great+Vibes&family=Alex+Brush&family=Sacramento&family=Dancing+Script&family=Tangerine&family=Yellowtail&family=Herr+Von+Muellerhoff&family=Pacifico&family=Grand+Hotel&family=Kaushan+Script&family=Satisfy&family=Cookie&family=Marck+Script&family=Mrs+Saint+Delafield&family=Petit+Formal+Script&family=Rouge+Script&family=Meddon&family=Meie+Script&family=Monsieur+La+Doulaise&family=Mr+Dafoe&family=Mr+De+Haviland&family=Pinyon+Script&family=Arizonia&family=Clicker+Script&family=Bilbo&family=Bilbo+Swash+Caps&family=Engagement&family=Qwigley&family=Dr+Sugiyama&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #000;
+    cursor: pointer;       /* クリックでフォント切替を示唆 */
+    user-select: none;
+  }
+
+  body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 60px;
+  }
+
+  .clock {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    max-width: 100%;
+  }
+
+  .digit {
+    position: relative;
+    width: 180px;
+    height: 620px;
+    overflow: hidden;
+    display: inline-block;
+    vertical-align: middle;
+  }
+
+  .s2-digit {
+    margin-right: 0;
+  }
+
+  /* 前5桁用 */
+  .num {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 140px;        /* 180px → 140px に縮小 */
+    font-weight: 400;
+    color: #ffffff;
+    font-family: 'Pinyon Script', cursive;
+    line-height: 1;
+    will-change: transform, opacity;
+    --tx: 0px;
+    --ty: 0px;
+    --rot: 0deg;
+  }
+
+  .num.enter {
+    opacity: 0;
+    animation: dropIn 0.72s cubic-bezier(0.34, 1.1, 0.45, 1) forwards;
+    animation-delay: 0.24s;
+  }
+
+  .num.exit {
+    animation: dropOut 0.6s cubic-bezier(0.55, 0, 0.55, 1) forwards;
+  }
+
+  /* V2: 下から上へ (riseIn / riseOut) */
+  @keyframes dropIn {
+    0% {
+      transform: translate(var(--tx), calc(200% + var(--ty))) rotate(var(--rot)) scaleY(1.3) scaleX(0.85);
+      opacity: 0;
+      filter: blur(3px);
+    }
+    40% { opacity: 0.75; filter: blur(1px); }
+    70% {
+      transform: translate(var(--tx), calc(-3% + var(--ty))) rotate(var(--rot)) scaleY(0.94) scaleX(1.05);
+      opacity: 1;
+      filter: blur(0);
+    }
+    85% {
+      transform: translate(var(--tx), calc(1.5% + var(--ty))) rotate(var(--rot)) scaleY(1.02) scaleX(0.98);
+    }
+    100% {
+      transform: translate(var(--tx), var(--ty)) rotate(var(--rot)) scaleY(1) scaleX(1);
+      opacity: 1;
+      filter: blur(0);
+    }
+  }
+
+  @keyframes dropOut {
+    0% {
+      transform: translate(var(--tx), var(--ty)) rotate(var(--rot)) scaleY(1) scaleX(1);
+      opacity: 1;
+      filter: blur(0);
+    }
+    35% {
+      transform: translate(var(--tx), calc(-30% + var(--ty))) rotate(var(--rot)) scaleY(1.15) scaleX(0.9);
+      opacity: 0.85;
+      filter: blur(0.5px);
+    }
+    100% {
+      transform: translate(var(--tx), calc(-210% + var(--ty))) rotate(var(--rot)) scaleY(1.35) scaleX(0.75);
+      opacity: 0;
+      filter: blur(2.5px);
+    }
+  }
+
+  /* S2用ストリップ */
+  .strip {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    will-change: transform;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    contain: layout style;
+  }
+
+  .strip .cell {
+    display: block;
+    width: 100%;
+    height: 160px;
+    line-height: 160px;
+    text-align: center;
+    font-size: 140px;
+    font-weight: 400;
+    color: #ffffff;
+    font-family: 'Pinyon Script', cursive;
+    transform-origin: center center;
+    /* 角度は JS からインライン style.transform で入れる
+       (CSS変数を介すと contain 側の影響で効かないケースがあるため) */
+  }
+
+  /* コロン */
+  .colon {
+    font-size: 115px;
+    font-weight: 400;
+    color: #ffffff;
+    font-family: 'Pinyon Script', cursive;
+    line-height: 1;
+    padding-bottom: 22px;
+    margin: 0 -6px;
+    opacity: 0.9;
+  }
+
+  /* 左上の日付・天気表示 */
+  .info-bar {
+    position: fixed;
+    top: 24px;
+    left: 28px;
+    color: rgba(255, 255, 255, 0.75);
+    font-family: 'Helvetica Neue', 'Arial', sans-serif;
+    font-size: 18px;
+    font-weight: 300;
+    letter-spacing: 1.5px;
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.15);
+  }
+
+  .info-bar .weather-icon {
+    font-size: 20px;
+    line-height: 1;
+    /* 絵文字風のカラー表示を避け、テキストとしてモノクロ表示させる */
+    font-family: 'Helvetica Neue', 'Arial', sans-serif;
+    color: rgba(255, 255, 255, 0.75);
+    font-variant-emoji: text;
+  }
+
+  .info-bar .temp {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .info-bar .hi,
+  .info-bar .lo {
+    color: rgba(255, 255, 255, 0.75);
+  }
+
+  .info-bar .sep {
+    opacity: 0.5;
+    margin: 0 2px;
+  }
+
+  @media (max-width: 700px) {
+    .info-bar {
+      top: 14px;
+      left: 14px;
+      font-size: 13px;
+      gap: 9px;
+      letter-spacing: 1px;
+    }
+    .info-bar .weather-icon { font-size: 15px; }
+  }
+
+  /* フォント名表示 */
+  .font-info {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: rgba(255, 255, 255, 0.4);
+    font-family: 'Helvetica Neue', sans-serif;
+    font-size: 13px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    pointer-events: none;
+    transition: opacity 0.3s;
+  }
+
+  .font-info .hint {
+    font-size: 10px;
+    opacity: 0.6;
+    margin-top: 4px;
+    letter-spacing: 3px;
+  }
+
+  .font-info .name {
+    font-weight: 500;
+  }
+
+  @media (max-width: 1400px) {
+    body { padding: 30px 40px; }
+    .digit { width: 150px; height: 520px; }
+    .num { font-size: 118px; }
+    .strip .cell { height: 136px; line-height: 136px; font-size: 118px; }
+    .colon { font-size: 96px; padding-bottom: 18px; margin: 0 -5px; }
+  }
+
+  @media (max-width: 1100px) {
+    body { padding: 20px 30px; }
+    .digit { width: 120px; height: 420px; }
+    .num { font-size: 95px; }
+    .strip .cell { height: 112px; line-height: 112px; font-size: 95px; }
+    .colon { font-size: 78px; padding-bottom: 15px; margin: 0 -4px; }
+  }
+
+  @media (max-width: 850px) {
+    body { padding: 16px 20px; }
+    .digit { width: 90px; height: 320px; }
+    .num { font-size: 72px; }
+    .strip .cell { height: 84px; line-height: 84px; font-size: 72px; }
+    .colon { font-size: 60px; padding-bottom: 12px; margin: 0 -3px; }
+  }
+
+  @media (max-width: 600px) {
+    body { padding: 12px 14px; }
+    .digit { width: 64px; height: 230px; }
+    .num { font-size: 52px; }
+    .strip .cell { height: 60px; line-height: 60px; font-size: 52px; }
+    .colon { font-size: 44px; padding-bottom: 10px; margin: 0 -2px; }
+  }
+
+  @media (max-width: 440px) {
+    body { padding: 8px 10px; }
+    .digit { width: 48px; height: 180px; }
+    .num { font-size: 40px; }
+    .strip .cell { height: 48px; line-height: 48px; font-size: 40px; }
+    .colon { font-size: 34px; padding-bottom: 8px; margin: 0 -2px; }
+    .font-info { font-size: 10px; }
+  }
+</style>
+</head>
+<body>
+  <!-- 左上: 日付 + 天気 -->
+  <div class="info-bar" id="infoBar">
+    <span class="date" id="dateText">----.--.--.---</span>
+    <span class="city">Tokyo</span>
+    <span class="weather-icon" id="weatherIcon">&mdash;</span>
+    <span class="temp">
+      <span class="hi" id="tempHi">--°</span>
+      <span class="sep">/</span>
+      <span class="lo" id="tempLo">--°</span>
+    </span>
+  </div>
+
+  <div class="clock" id="clock">
+    <div class="digit" data-idx="0"></div>
+    <div class="digit" data-idx="1"></div>
+    <div class="colon">:</div>
+    <div class="digit" data-idx="2"></div>
+    <div class="digit" data-idx="3"></div>
+    <div class="colon">:</div>
+    <div class="digit" data-idx="4"></div>
+    <div class="digit s2-digit" data-idx="5"></div>
+  </div>
+
+  <div class="font-info" id="fontInfo">
+    <div class="name" id="fontName">Pinyon Script</div>
+    <div class="hint">Click to change font &nbsp; ( 1 / 30 )</div>
+  </div>
+
+<script>
+  // ============================================================
+  // 30種類のエレガント/セクシー系フォント
+  // ============================================================
+  const FONTS = [
+    'Pinyon Script',
+    'Allura',
+    'Italianno',
+    'Parisienne',
+    'Great Vibes',
+    'Alex Brush',
+    'Sacramento',
+    'Dancing Script',
+    'Tangerine',
+    'Yellowtail',
+    'Herr Von Muellerhoff',
+    'Pacifico',
+    'Grand Hotel',
+    'Kaushan Script',
+    'Satisfy',
+    'Cookie',
+    'Marck Script',
+    'Mrs Saint Delafield',
+    'Petit Formal Script',
+    'Rouge Script',
+    'Meddon',
+    'Meie Script',
+    'Monsieur La Doulaise',
+    'Mr Dafoe',
+    'Mr De Haviland',
+    'Arizonia',
+    'Clicker Script',
+    'Bilbo',
+    'Bilbo Swash Caps',
+    'Qwigley'
+  ];
+
+  let currentFontIndex = 0;
+
+  function applyFont(index) {
+    const fontName = FONTS[index];
+    const family = `'${fontName}', cursive`;
+    document.querySelectorAll('.num, .strip .cell, .colon').forEach(el => {
+      el.style.fontFamily = family;
+    });
+    // 表示を更新
+    const nameEl = document.getElementById('fontName');
+    if (nameEl) nameEl.textContent = fontName;
+    const hintEl = document.querySelector('.font-info .hint');
+    if (hintEl) hintEl.textContent = `Click to change font  ( ${index + 1} / ${FONTS.length} )`;
+    // 名前表示自体にも現在のフォントを反映したい場合は以下を有効化
+    // if (nameEl) nameEl.style.fontFamily = family;
+  }
+
+  // クリックで次のフォントに切り替え
+  document.body.addEventListener('click', () => {
+    currentFontIndex = (currentFontIndex + 1) % FONTS.length;
+    applyFont(currentFontIndex);
+  });
+
+  // ============================================================
+  // 日付表示 (左上): 2026.12.31.Tue 形式
+  // ============================================================
+  const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  function updateDate() {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    const dow = DAY_NAMES[now.getDay()];
+    const el = document.getElementById('dateText');
+    if (el) el.textContent = `${y}.${m}.${d}.${dow}`;
+  }
+
+  updateDate();
+  // 以降 1分ごとに更新(日付またぎ対応)
+  setInterval(updateDate, 60 * 1000);
+
+  // ============================================================
+  // 天気予報 (東京固定、Open-Meteo API)
+  // ============================================================
+  // Open-Meteoの weather_code をモノクロ記号にマッピング
+  // 絵文字ではなく Unicode のシンボル文字を使用(色が付かない)
+  // 参考: https://open-meteo.com/en/docs (WMO Weather interpretation codes)
+  function weatherCodeToIcon(code) {
+    if (code === 0) return '☀';                    // U+2600 BLACK SUN (晴れ)
+    if (code === 1 || code === 2) return '⛅';       // U+26C5 SUN BEHIND CLOUD
+    if (code === 3) return '☁';                    // U+2601 CLOUD
+    if (code === 45 || code === 48) return '≈';     // 霧(波線で模擬)
+    if (code >= 51 && code <= 57) return '☂';       // Drizzle → 傑
+    if (code >= 61 && code <= 67) return '☂';       // Rain → 傑マーク
+    if (code >= 71 && code <= 77) return '☃';       // Snow → 雪だるま
+    if (code >= 80 && code <= 82) return '☂';       // Rain showers
+    if (code >= 85 && code <= 86) return '☃';       // Snow showers
+    if (code >= 95 && code <= 99) return '⚡';       // Thunderstorm → 雷
+    return '—';
+  }
+
+  async function fetchWeather() {
+    // 東京の緯度経度
+    const lat = 35.6895;
+    const lon = 139.6917;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}`
+              + `&current_weather=true`
+              + `&daily=weather_code,temperature_2m_max,temperature_2m_min`
+              + `&timezone=Asia%2FTokyo`;
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('Weather API failed: ' + res.status);
+      const data = await res.json();
+
+      // 現在の天気コード(current_weather) と 今日の最高/最低気温(daily)
+      const code = data.current_weather && data.current_weather.weathercode;
+      const hi = data.daily && data.daily.temperature_2m_max && data.daily.temperature_2m_max[0];
+      const lo = data.daily && data.daily.temperature_2m_min && data.daily.temperature_2m_min[0];
+
+      const iconEl = document.getElementById('weatherIcon');
+      const hiEl = document.getElementById('tempHi');
+      const loEl = document.getElementById('tempLo');
+
+      if (iconEl && typeof code === 'number') {
+        iconEl.textContent = weatherCodeToIcon(code);
+      }
+      if (hiEl && typeof hi === 'number') {
+        hiEl.textContent = Math.round(hi) + '°';
+      }
+      if (loEl && typeof lo === 'number') {
+        loEl.textContent = Math.round(lo) + '°';
+      }
+    } catch (e) {
+      console.warn('Weather fetch error:', e);
+      // エラー時は表示をダッシュのままに
+    }
+  }
+
+  fetchWeather();
+  // 30分ごとに更新
+  setInterval(fetchWeather, 30 * 60 * 1000);
+
+  // ============================================================
+  // 時計の実装(以下は前回までの内容)
+  // ============================================================
+  const digits = document.querySelectorAll('.digit');
+  const S2_INDEX = 5;
+
+  let prev = ['', '', '', '', '', ''];
+
+  function pad(n) { return n < 10 ? '0' + n : '' + n; }
+
+  function getTimeDigits() {
+    const now = new Date();
+    return (pad(now.getHours()) + pad(now.getMinutes()) + pad(now.getSeconds())).split('');
+  }
+
+  function randomOffset() {
+    const tx = (Math.random() * 10 - 5).toFixed(2) + 'px';
+    const ty = (Math.random() * 8 - 4).toFixed(2) + 'px';
+    const rot = (Math.random() * 4 - 2).toFixed(2) + 'deg';
+    return { tx, ty, rot };
+  }
+
+  function applyNumOffset(el, offset) {
+    el.style.setProperty('--tx', offset.tx);
+    el.style.setProperty('--ty', offset.ty);
+    el.style.setProperty('--rot', offset.rot);
+  }
+
+  // 前5桁
+  function updateSingleDigit(digitEl, newValue) {
+    const existing = digitEl.querySelectorAll('.num');
+    existing.forEach((el) => {
+      if (!el.classList.contains('exit')) {
+        el.classList.remove('enter');
+        el.classList.add('exit');
+        el.addEventListener('animationend', () => {
+          if (el.parentNode) el.parentNode.removeChild(el);
+        }, { once: true });
+      }
+    });
+
+    const newNum = document.createElement('div');
+    newNum.className = 'num enter';
+    newNum.textContent = newValue;
+    applyNumOffset(newNum, randomOffset());
+    // 現在のフォントを新要素にも適用
+    newNum.style.fontFamily = `'${FONTS[currentFontIndex]}', cursive`;
+    digitEl.appendChild(newNum);
+
+    newNum.addEventListener('animationend', () => {
+      newNum.classList.remove('enter');
+    }, { once: true });
+  }
+
+  function setInitialSingleDigit(digitEl, value) {
+    const num = document.createElement('div');
+    num.className = 'num';
+    num.textContent = value;
+    applyNumOffset(num, randomOffset());
+    num.style.transform = 'translate(var(--tx), var(--ty)) rotate(var(--rot))';
+    num.style.fontFamily = `'${FONTS[currentFontIndex]}', cursive`;
+    digitEl.appendChild(num);
+  }
+
+  // ============================================================
+  // S2 (V2: 下から上へ流れるストリップ)
+  // ============================================================
+  // 仕様:
+  //   - 数字は下から上へ流れる
+  //   - 各セルに独立したランダム角度(±5度)を付与、表示中は変わらない
+  //   - 時刻同期は維持したまま、セル高を20%小さくして見た目の移動速度だけ20%遅くする
+  // ============================================================
+
+  const s2Container = digits[S2_INDEX];
+  let s2Strip = null;
+  let s2Cells = [];          // 上から順に格納(index 0 = 最も上)
+  let s2BottomValue = 0;     // 一番下のセルの値(次に追加する値を計算するため)
+  let s2CellHeight = 160;
+  let s2StripTopCSS = -90;
+  let s2RandomTx = '0px';
+  let s2Raf = 0;
+
+  // 1セル=1秒の同期は維持し、セル高のみ20%小さくして見た目の速度を落とす
+  const S2_SECONDS_PER_CELL = 1;
+
+  function getCellHeight() {
+    const w = window.innerWidth;
+    if (w <= 440) return 48;
+    if (w <= 600) return 60;
+    if (w <= 850) return 84;
+    if (w <= 1100) return 112;
+    if (w <= 1400) return 136;
+    return 160;
+  }
+
+  function getDigitHeight() {
+    const w = window.innerWidth;
+    if (w <= 440) return 180;
+    if (w <= 600) return 230;
+    if (w <= 850) return 320;
+    if (w <= 1100) return 420;
+    if (w <= 1400) return 520;
+    return 620;
+  }
+
+  function getStripTop(cellH) {
+    return (getDigitHeight() / 2) - (2.5 * cellH);
+  }
+
+  // セルごとのランダム角度
+  // +10〜+25度 または -10〜-25度 のどちらかをランダムに選ぶ
+  function randomCellRotationDeg() {
+    const mag = 10 + Math.random() * 15;
+    const sign = Math.random() < 0.5 ? -1 : 1;
+    return (mag * sign).toFixed(2);
+  }
+
+  function createS2Cell(value, fontFamily) {
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    cell.textContent = value;
+    cell.style.fontFamily = fontFamily;
+    // セルごとに独立したランダム角度(作成時に固定)
+    // インライン transform で確実に適用
+    const deg = randomCellRotationDeg();
+    cell.style.transform = `rotate(${deg}deg)`;
+    return cell;
+  }
+
+  function createS2Strip() {
+    const strip = document.createElement('div');
+    strip.className = 'strip';
+
+    s2CellHeight = getCellHeight();
+    s2StripTopCSS = getStripTop(s2CellHeight);
+    strip.style.top = s2StripTopCSS + 'px';
+
+    // ストリップ全体の横位置のみランダム(角度はセルごとなのでストリップ自体は0)
+    const tx = (Math.random() * 10 - 5).toFixed(2) + 'px';
+    s2RandomTx = tx;
+
+    const now = new Date();
+    const currentSec = now.getSeconds() % 10;
+
+    s2Cells = [];
+    const NUM_CELLS = 20;
+    const currentFontFamily = `'${FONTS[currentFontIndex]}', cursive`;
+
+    // V2: 下から上へ流れるのでセルの配置が逆になる
+    // ストリップは常に上から下に DOM が並ぶ(上からindex 0, 1, 2...)
+    // V1: 上から下へ流れる → 上が未来(まだ見えてない数字)、下が過去
+    // V2: 下から上へ流れる → 下が未来(まだ見えてない数字)、上が過去
+    //
+    // 中央(index 2)に現在の秒の値を配置するのは同じ
+    // しかし index 0,1 は「過去」、 index 3,4,... は「未来」になる
+    for (let i = 0; i < NUM_CELLS; i++) {
+      // V2: i=0 が最も上(過去の数字)、i=NUM_CELLS-1 が最も下(未来の数字)
+      // i=2 が中央=現在の値
+      // i=3 は次の秒(currentSec+1)、i=4は currentSec+2, ...
+      // i=1 は 1秒前(currentSec-1)、i=0 は 2秒前(currentSec-2)
+      const val = ((currentSec + (i - 2)) % 10 + 10) % 10;
+      const cell = createS2Cell(val, currentFontFamily);
+      strip.appendChild(cell);
+      s2Cells.push(cell);
+    }
+    // 一番下のセル(index NUM_CELLS-1 = 19)の値
+    s2BottomValue = ((currentSec + (NUM_CELLS - 1 - 2)) % 10 + 10) % 10;
+
+    s2Container.appendChild(strip);
+    s2Strip = strip;
+
+    s2Raf = requestAnimationFrame(s2Loop);
+  }
+
+  function s2Loop() {
+    if (!s2Strip) return;
+
+    const now = new Date();
+    const totalSeconds = now.getTime() / 1000;
+    const elapsed = totalSeconds - s2T0;
+    const rawTranslate = (elapsed / S2_SECONDS_PER_CELL) * s2CellHeight;
+
+    while (rawTranslate - s2Consumed >= s2CellHeight) {
+      s2Consumed += s2CellHeight;
+
+      // V2: 下から上へ流れる
+      // → ストリップは上向きに動く(translateY は負方向)
+      // → 一番上のセルが畫面外に出ていく = 一番上を削除
+      // → 一番下に新しいセルを追加(未来の数字)
+      const topCell = s2Cells.shift();
+      if (topCell && topCell.parentNode) {
+        topCell.parentNode.removeChild(topCell);
+      }
+
+      // 新しい下の値 = 現在の一番下 + 1
+      s2BottomValue = (s2BottomValue + 1) % 10;
+      const newCell = createS2Cell(s2BottomValue, `'${FONTS[currentFontIndex]}', cursive`);
+      s2Strip.appendChild(newCell);
+      s2Cells.push(newCell);
+    }
+
+    const actualTranslate = rawTranslate - s2Consumed;
+    const tx = parseFloat(s2RandomTx) || 0;
+    // V2: 下から上へ = translateY は負方向(-actualTranslate)
+    // ストリップ自体の回転はなし(角度はセルごと)
+    s2Strip.style.transform =
+      `translate3d(${tx}px, ${(-actualTranslate).toFixed(2)}px, 0)`;
+
+    s2Raf = requestAnimationFrame(s2Loop);
+  }
+
+  let s2T0 = 0;
+  let s2Consumed = 0;
+
+  function initS2() {
+    if (s2Raf) cancelAnimationFrame(s2Raf);
+    s2Raf = 0;
+    if (s2Strip && s2Strip.parentNode) {
+      s2Strip.parentNode.removeChild(s2Strip);
+    }
+    s2Strip = null;
+    s2Cells = [];
+
+    const now = new Date();
+    const totalSec = now.getTime() / 1000;
+    const fractional = (now.getMilliseconds()) / 1000;
+    s2T0 = totalSec - fractional;
+    s2Consumed = 0;
+
+    createS2Strip();
+  }
+
+  function tick() {
+    const current = getTimeDigits();
+
+    for (let i = 0; i < 5; i++) {
+      if (current[i] !== prev[i]) {
+        if (prev[i] === '') {
+          setInitialSingleDigit(digits[i], current[i]);
+        } else {
+          updateSingleDigit(digits[i], current[i]);
+        }
+      }
+    }
+
+    if (prev[S2_INDEX] === '') {
+      initS2();
+    }
+
+    prev = current;
+  }
+
+  tick();
+
+  let resizeTimer = 0;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      if (prev[S2_INDEX] !== '') initS2();
+    }, 120);
+  });
+
+  function scheduleNextTick() {
+    const now = new Date();
+    const delay = 1000 - now.getMilliseconds();
+    setTimeout(() => {
+      tick();
+      setInterval(tick, 1000);
+    }, delay);
+  }
+  scheduleNextTick();
+</script>
+</body>
+</html>
